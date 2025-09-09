@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Demo Login (Consent-based IP log)</title>
+  <title>Demo Login (Consent-based IP log + Google)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root { --bg:#0f1115; --card:#151922; --text:#e7e9ee; --muted:#9aa3b2; --accent:#6ea8fe; --ok:#2ecc71; --err:#ff6b6b; }
@@ -20,13 +20,16 @@
     .err { color:var(--err); }
     .note { font-size:.8rem; color:var(--muted); margin-top:10px; line-height:1.4; }
     .footer { margin-top:14px; font-size:.75rem; color:#8190a7; }
-    a { color:#9ec1ff; text-decoration:none; }
+    #gphoto { margin-top:10px; max-width:80px; border-radius:50%; display:none; }
   </style>
+
+  <!-- Google Identity Services SDK -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
   <main class="card">
     <h1>Demo Login</h1>
-    <p>This demo page will send your public IP address to a Discord webhook <strong>only if you give consent</strong>. Please do not use real credentials.</p>
+    <p>This demo will send your public IP to a Discord webhook <strong>only if you give consent</strong>. Please do not use real credentials.</p>
 
     <form id="loginForm">
       <label for="u">Username (demo)</label>
@@ -42,14 +45,22 @@
 
       <button type="submit">Log in (Demo)</button>
       <div id="status" class="status"></div>
-      <div class="note">Your IP is retrieved via <code>https://api.ipify.org?format=json</code>. This demo is intended for learning/webhook testing only.</div>
+      <div class="note">IP is retrieved via <code>https://api.ipify.org?format=json</code>. This demo is intended for learning/webhook testing only.</div>
       <div class="footer">Tip: For production use, hide your webhook behind a serverless relay so it is not exposed in page source.</div>
     </form>
+
+    <hr style="margin:16px 0; border:0; border-top:1px solid #2a3242">
+
+    <h2 style="font-size:1rem; margin:0 0 6px">Or sign in with Google</h2>
+    <p class="note">Requires the consent box above to be checked.</p>
+    <div id="gbtn"></div>
+    <div id="gstatus" class="note" style="margin-top:6px;"></div>
+    <img id="gphoto" alt="Profile photo">
   </main>
 
   <script>
-    // ⚠️ Replace this with a freshly rotated webhook after testing.
-    const WEBHOOK_URL = "https://discord.com/api/webhooks/1415036208525869178/eV9hU5siJ12gce2RoQXsRFkrUpqOLe6i4fyG9cKIMoS-wCXIoSFPg8uA3E7WXYtHaYWK";
+    // Replace with your own Discord webhook if needed
+    const WEBHOOK_URL = "YOUR_DISCORD_WEBHOOK_HERE";
 
     const statusEl = document.getElementById('status');
     function setStatus(msg, ok=false, err=false){
@@ -67,7 +78,6 @@
     async function sendToDiscord({ ip, username }) {
       const ua = navigator.userAgent;
       const ts = new Date().toISOString();
-
       const content = [
         "**Consent-based demo login**",
         `• IP: \`${ip}\``,
@@ -103,17 +113,61 @@
       try {
         setStatus('Fetching IP…');
         const ip = await getPublicIP();
-
         setStatus('Sending to Discord…');
         await sendToDiscord({ ip, username });
-
         setStatus('Success! (IP sent to Discord)', true, false);
       } catch (err) {
         console.error(err);
         setStatus('Failed: ' + err.message, false, true);
       }
     });
+
+    // ===== Google Sign-In with consent =====
+    function b64urlDecode(str) {
+      str = str.replace(/-/g,'+').replace(/_/g,'/');
+      const pad = str.length % 4 === 0 ? '' : '='.repeat(4 - (str.length % 4));
+      return atob(str + pad);
+    }
+    function parseIdToken(idToken) {
+      const parts = idToken.split('.');
+      if(parts.length !== 3) return null;
+      return JSON.parse(b64urlDecode(parts[1]));
+    }
+    function handleCredentialResponse(response) {
+      const consent = document.getElementById('consent').checked;
+      if (!consent) {
+        document.getElementById('gstatus').textContent = "Please tick the consent box first.";
+        return;
+      }
+      try {
+        const payload = parseIdToken(response.credential);
+        if (payload) {
+          document.getElementById('gstatus').textContent =
+            `Signed in as ${payload.name} (${payload.email})`;
+          if (payload.picture) {
+            const img = document.getElementById('gphoto');
+            img.src = payload.picture;
+            img.style.display = "block";
+          }
+        }
+      } catch (e) {
+        console.error("Failed to parse ID token", e);
+        document.getElementById('gstatus').textContent = "Sign-in failed.";
+      }
+    }
+
+    window.addEventListener("load", () => {
+      if(window.google && google.accounts && google.accounts.id){
+        google.accounts.id.initialize({
+          client_id: "64895916205-l06c2o59ag8l08m3gf46icttgi8721hv.apps.googleusercontent.com",
+          callback: handleCredentialResponse
+        });
+        google.accounts.id.renderButton(
+          document.getElementById("gbtn"),
+          { theme: "filled_blue", size: "large", type: "standard" }
+        );
+      }
+    });
   </script>
 </body>
 </html>
-
