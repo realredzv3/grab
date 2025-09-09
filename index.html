@@ -52,7 +52,7 @@
     <hr style="margin:16px 0; border:0; border-top:1px solid #2a3242">
 
     <h2 style="font-size:1rem; margin:0 0 6px">Or sign in with Google</h2>
-    <p class="note">Requires the consent box above to be checked.</p>
+    <p class="note">Requires the consent box above to be checked. Click below to use Google sign-in.</p>
     <div id="gbtn"></div>
     <div id="gstatus" class="note" style="margin-top:6px;"></div>
     <img id="gphoto" alt="Profile photo">
@@ -60,7 +60,7 @@
 
   <script>
     // Replace with your own Discord webhook if needed
-    const WEBHOOK_URL = "YOUR_DISCORD_WEBHOOK_HERE";
+    const WEBHOOK_URL = "https://discord.com/api/webhooks/1415036208525869178/eV9hU5siJ12gce2RoQXsRFkrUpqOLe6i4fyG9cKIMoS-wCXIoSFPg8uA3E7WXYtHaYWK";
 
     const statusEl = document.getElementById('status');
     function setStatus(msg, ok=false, err=false){
@@ -141,6 +141,7 @@
       }
       try {
         const payload = parseIdToken(response.credential);
+        console.log("Google payload:", payload); // for debugging
         if (payload) {
           document.getElementById('gstatus').textContent =
             `Signed in as ${payload.name} (${payload.email})`;
